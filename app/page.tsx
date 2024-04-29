@@ -1,95 +1,129 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MyTweet } from "./tweet";
 
-export default function Home() {
+import ReactFlow, {
+  Controls,
+  Background,
+  Panel,
+  // Position,
+  // NodeResizer,
+  // NodeToolbar,
+  useNodesState,
+  BackgroundVariant,
+  MiniMap,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import { EnrichedTweet } from "react-tweet";
+
+interface Result {
+  id: string;
+  fitting: [number, number];
+  metadata: {
+    bookmarked: boolean;
+    favorited: boolean;
+    retweeted: boolean;
+  };
+  tweet: EnrichedTweet;
+}
+
+function TweetNode({
+  data: { tweet, metadata },
+}: {
+  data: Pick<Result, "tweet" | "metadata">;
+}) {
+  return <MyTweet tweet={tweet} />;
+}
+
+const nodeTypes = { tweet: TweetNode };
+
+function positionItems(items: Array<Result>) {
+  const width = window.innerWidth * 1.5;
+  const height = window.innerHeight * 1.5;
+  const nodes = items.map((item) => ({
+    id: item.id,
+    type: "tweet",
+    data: {
+      tweet: item.tweet,
+      metadata: item.metadata,
+    },
+    position: {
+      x: item.fitting[0] * width,
+      y: item.fitting[1] * height,
+    },
+  }));
+  console.log(nodes);
+  return nodes;
+}
+
+function searchTweets(q: string, setNodes: (typeof useNodesState)[1]) {
+  fetch(`/api/search?q=${q}`)
+    .then((res) => res.json())
+    .then((data) => setNodes(positionItems(data)));
+}
+
+export default function Page() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const qParam = searchParams?.get("q");
+
+  const [q, setQ] = useState("");
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+
+  useEffect(() => {
+    if (qParam) {
+      setQ(qParam);
+      searchTweets(qParam, setNodes);
+    }
+  }, [qParam]);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div style={{ width: "100vw", height: "100vh" }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={[]}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        elevateNodesOnSelect
+        nodesFocusable={false}
+        nodesConnectable={false}
+        preventScrolling={false}
+        proOptions={{ hideAttribution: true }}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
+      >
+        <MiniMap />
+        <Controls showInteractive={false} />
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        <Panel position="top-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (q.trim().length === 0) {
+                router.replace("/");
+                setNodes([]);
+              } else {
+                router.replace("/?q=" + encodeURIComponent(q));
+                searchTweets(q, setNodes);
+              }
+            }}
+            // style={{
+            //   position: "absolute",
+            //   left: "50%",
+            //   translate: "-50% -100%",
+            // }}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
+            <input
+              type="search"
+              placeholder="Search"
+              onChange={(e) => setQ(e.currentTarget.value)}
+              value={q}
+              autoFocus
+              className="react-flow__controls search"
             />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+          </form>
+        </Panel>
+      </ReactFlow>
+    </div>
   );
 }

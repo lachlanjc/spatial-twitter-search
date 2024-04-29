@@ -95,13 +95,23 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
+}
+
+a[class^="tweet-info_infoLink"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+input.search {
+  border: 0;
+  font-size: 24px;
+  font-family: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background-color: hsl(0deg 0% 100% / 98%);
+  margin-top: 16px;
 }
