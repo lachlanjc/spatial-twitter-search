@@ -152,7 +152,7 @@ export async function queryTweets(
     const umap = new UMAP({
       nNeighbors: 2,
       // minDist: 0.00001,
-      // spread: 50,
+      spread: 5,
       nComponents: 2, // dimensions
     });
     let fittings = umap.fit(items.embeddings?.[0] ?? []);

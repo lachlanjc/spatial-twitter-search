@@ -1,7 +1,8 @@
 "use client";
 import {
-  Dispatch,
-  SetStateAction,
+  type Dispatch,
+  type SetStateAction,
+  type CSSProperties,
   startTransition,
   useCallback,
   useEffect,
@@ -9,9 +10,18 @@ import {
   useTransition,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MyTweet } from "./tweet";
+import { MyTweet } from "@/app/tweet";
 
-import { Flex, Grid, Select, Spinner, TextField } from "@radix-ui/themes";
+import {
+  Text,
+  Flex,
+  Grid,
+  Select,
+  Spinner,
+  TextField,
+  Container,
+  Button,
+} from "@radix-ui/themes";
 
 import ReactFlow, {
   Controls,
@@ -50,7 +60,10 @@ function TweetNode({
 const nodeTypes = { tweet: TweetNode };
 
 function positionItems(items: Array<Result>) {
-  const width = window.innerWidth * 1.75;
+  if (!Array.isArray(items) || items.length === 0) {
+    return [];
+  }
+  const width = window.innerWidth * 2;
   const height = window.innerHeight * 1.5;
   const nodes = items.map((item) => ({
     id: item.id,
@@ -160,110 +173,149 @@ export default function Page() {
       >
         <MiniMap />
         <Controls showInteractive={false} />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        <Background variant={BackgroundVariant.Dots} gap={55} size={2} />
         <Panel position="top-center">
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              //   if (q.trim().length === 0) {
-              //     router.replace("/");
-              //     setNodes([]);
-              //   } else {
-              //     const params = new URLSearchParams();
-              //     params.set("q", formState.q);
-              //     params.set("interaction", formState.interaction);
-              //     router.replace(`/?${params.toString()}`);
-              //     searchTweets(q, setNodes);
-              //   }
             }}
             style={{
-              width: 680,
-              //   position: "absolute",
-              //   left: "50%",
-              //   translate: "-50% -100%",
+              paddingBlock: 24,
+              position: "sticky",
+              top: 0,
+              zIndex: 4,
             }}
           >
-            <TextField.Root
-              placeholder="Search tweets…"
-              variant="classic"
-              type="search"
-              // onChange={(e) => setQ(e.currentTarget.value)}
-              // value={q}
-              onBlur={(e) => {
-                searchFormWith("q", e.currentTarget.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                }
-              }}
-              autoFocus
-              // className="react-flow__controls search"
-              size="3"
-              mt="4"
-              style={{ width: "100%" }}
-            >
-              <TextField.Slot>
-                <MagnifyingGlassIcon height="16" width="16" />
-              </TextField.Slot>
-              <TextField.Slot>
-                {(isPending || isLoading) && <Spinner />}
-              </TextField.Slot>
-            </TextField.Root>
-            <Grid columns="4" gap="4" mt="4">
-              <Select.Root
-                name="kind"
-                defaultValue="any"
-                onValueChange={(val) => searchFormWith("kind", val)}
+            <div className="blur">
+              <div
+                className="blur-layer"
+                style={{ "--index": 1 } as CSSProperties}
+              />
+              <div
+                className="blur-layer"
+                style={{ "--index": 2 } as CSSProperties}
+              />
+              <div
+                className="blur-layer"
+                style={{ "--index": 3 } as CSSProperties}
+              />
+              <div
+                className="blur-layer"
+                style={{ "--index": 4 } as CSSProperties}
+              />
+            </div>
+            <Container maxWidth="680px">
+              <TextField.Root
+                placeholder="Search tweets…"
+                variant="classic"
+                type="search"
+                onChange={(e) => {
+                  setFormState((val) => ({ ...val, q: e.target.value }));
+                }}
+                value={formState.q}
+                onBlur={(e) => {
+                  searchFormWith("q", e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                autoFocus
+                // className="react-flow__controls search"
+                size="3"
+                style={{ width: "100%", position: "relative", zIndex: 5 }}
               >
-                <Select.Trigger variant="classic" radius="full" />
-                <Select.Content variant="soft" position="popper">
-                  <Select.Item value="any">Any type</Select.Item>
-                  <Select.Item value="standalone">Standalone</Select.Item>
-                  <Select.Item value="quote">Quotes</Select.Item>
-                  <Select.Item value="reply">Replies</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                name="link"
-                defaultValue="any"
-                onValueChange={(val) => searchFormWith("link", val)}
-              >
-                <Select.Trigger variant="classic" radius="full" />
-                <Select.Content variant="soft" position="popper">
-                  <Select.Item value="any">Any links</Select.Item>
-                  <Select.Item value="mention">Has mention</Select.Item>
-                  <Select.Item value="url">Has URL</Select.Item>
-                  <Select.Item value="hashtag">Has hashtag</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                name="media"
-                defaultValue="any"
-                onValueChange={(val) => searchFormWith("media", val)}
-              >
-                <Select.Trigger variant="classic" radius="full" />
-                <Select.Content variant="soft" position="popper">
-                  <Select.Item value="any">Any media</Select.Item>
-                  <Select.Item value="photo">Has photo</Select.Item>
-                  <Select.Item value="gif">Has GIF</Select.Item>
-                  <Select.Item value="video">Has video</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                defaultValue="any"
-                onValueChange={(val) => searchFormWith("interaction", val)}
-              >
-                <Select.Trigger variant="classic" radius="full" />
-                <Select.Content variant="soft" position="popper">
-                  <Select.Item value="any">Any interaction</Select.Item>
-                  <Select.Item value="favorited">Liked</Select.Item>
-                  <Select.Item value="bookmarked">Bookmarked</Select.Item>
-                  {/* <Select.Item value="retweeted">Retweeted</Select.Item> */}
-                </Select.Content>
-              </Select.Root>
-            </Grid>
+                <TextField.Slot>
+                  <MagnifyingGlassIcon height="16" width="16" />
+                </TextField.Slot>
+                <TextField.Slot>
+                  {(isPending || isLoading) && <Spinner />}
+                </TextField.Slot>
+              </TextField.Root>
+              <Grid columns="4" gap="4" mt="4">
+                <Select.Root
+                  name="kind"
+                  defaultValue="any"
+                  onValueChange={(val) => searchFormWith("kind", val)}
+                >
+                  <Select.Trigger variant="classic" radius="full" />
+                  <Select.Content variant="soft" position="popper">
+                    <Select.Item value="any">Any type</Select.Item>
+                    <Select.Item value="standalone">Standalone</Select.Item>
+                    <Select.Item value="quote">Quotes</Select.Item>
+                    <Select.Item value="reply">Replies</Select.Item>
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  name="link"
+                  defaultValue="any"
+                  onValueChange={(val) => searchFormWith("link", val)}
+                >
+                  <Select.Trigger variant="classic" radius="full" />
+                  <Select.Content variant="soft" position="popper">
+                    <Select.Item value="any">Any links</Select.Item>
+                    <Select.Item value="mention">Has mention</Select.Item>
+                    <Select.Item value="url">Has URL</Select.Item>
+                    <Select.Item value="hashtag">Has hashtag</Select.Item>
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  name="media"
+                  defaultValue="any"
+                  onValueChange={(val) => searchFormWith("media", val)}
+                >
+                  <Select.Trigger variant="classic" radius="full" />
+                  <Select.Content variant="soft" position="popper">
+                    <Select.Item value="any">Any media</Select.Item>
+                    <Select.Item value="photo">Has photo</Select.Item>
+                    <Select.Item value="gif">Has GIF</Select.Item>
+                    <Select.Item value="video">Has video</Select.Item>
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  defaultValue="any"
+                  onValueChange={(val) => searchFormWith("interaction", val)}
+                >
+                  <Select.Trigger variant="classic" radius="full" />
+                  <Select.Content variant="soft" position="popper">
+                    <Select.Item value="any">Any interaction</Select.Item>
+                    <Select.Item value="favorited">Liked</Select.Item>
+                    <Select.Item value="bookmarked">Bookmarked</Select.Item>
+                    {/* <Select.Item value="retweeted">Retweeted</Select.Item> */}
+                  </Select.Content>
+                </Select.Root>
+              </Grid>
+            </Container>
           </form>
+        </Panel>
+        <Panel position="bottom-center">
+          {nodes.length === 0 &&
+            !isLoading &&
+            (formState.q.trim().length > 0 ? (
+              <Text size="3" color="gray" mb="4">
+                No tweets found
+              </Text>
+            ) : (
+              <Flex direction="column" align="center" gap="4" p="4">
+                <Text size="3" color="gray" weight="bold">
+                  Suggested searches
+                </Text>
+                <Flex gap="4">
+                  {["AI", "CSS", "spatial computing", "typography"].map(
+                    (topic) => (
+                      <Button
+                        variant="soft"
+                        radius="full"
+                        onClick={() => searchFormWith("q", topic)}
+                      >
+                        {topic}
+                      </Button>
+                    ),
+                  )}
+                </Flex>
+              </Flex>
+            ))}
         </Panel>
       </ReactFlow>
     </div>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "@radix-ui/themes/styles.css";
-// import "./globals.css";
+import "./globals.css";
+
+import { ThemeProvider } from "next-themes";
 
 import { Theme } from "@radix-ui/themes";
 
@@ -17,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Theme>{children}</Theme>
+        <ThemeProvider attribute="class">
+          <Theme accentColor="blue">{children}</Theme>
+        </ThemeProvider>
       </body>
     </html>
   );
