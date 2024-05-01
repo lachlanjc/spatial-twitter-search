@@ -1,7 +1,17 @@
 "use client";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  startTransition,
+  useCallback,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MyTweet } from "./tweet";
+
+import { Flex, Grid, Select, Spinner, TextField } from "@radix-ui/themes";
 
 import ReactFlow, {
   Controls,
@@ -16,6 +26,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { EnrichedTweet } from "react-tweet";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 
 interface Result {
   id: string;
@@ -39,14 +50,14 @@ function TweetNode({
 const nodeTypes = { tweet: TweetNode };
 
 function positionItems(items: Array<Result>) {
-  const width = window.innerWidth * 1.5;
+  const width = window.innerWidth * 1.75;
   const height = window.innerHeight * 1.5;
   const nodes = items.map((item) => ({
     id: item.id,
     type: "tweet",
     data: {
       tweet: item.tweet,
-      metadata: item.metadata,
+      // metadata: item.metadata,
     },
     position: {
       x: item.fitting[0] * width,
@@ -57,26 +68,81 @@ function positionItems(items: Array<Result>) {
   return nodes;
 }
 
-function searchTweets(q: string, setNodes: (typeof useNodesState)[1]) {
-  fetch(`/api/search?q=${q}`)
+function searchTweets(
+  params: URLSearchParams,
+  setNodes: (typeof useNodesState)[1],
+  setIsLoading: Dispatch<SetStateAction<boolean>>,
+) {
+  fetch(`/api/search?${params.toString()}`)
     .then((res) => res.json())
-    .then((data) => setNodes(positionItems(data)));
+    .then((data) => setNodes(positionItems(data)))
+    .then(() => setIsLoading(false));
 }
+
+const FORM_STATE = {
+  q: "",
+  kind: "any",
+  link: "any",
+  media: "any",
+  interaction: "any",
+};
 
 export default function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const qParam = searchParams?.get("q");
 
-  const [q, setQ] = useState("");
+  const [formState, setFormState] = useState(FORM_STATE);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
+  const searchFormWith = useCallback(
+    (field: keyof typeof FORM_STATE, newValue: string) => {
+      setIsLoading(true);
+      setFormState((obj) => ({ ...obj, [field]: newValue }));
+      startTransition(() => {
+        const params = new URLSearchParams();
+        const { q, interaction, kind, media, link } = {
+          ...formState,
+          // @ts-expect-error we know it's a field of FORM_STATE
+          [field]: newValue,
+        };
+        console.log("FORM STATE", formState);
+        params.set("q", q);
+        params.set("kind", kind);
+        params.set("link", link);
+        params.set("media", media);
+        params.set("interaction", interaction);
+
+        if (q.trim().length === 0) {
+          // router.replace("/");
+          setNodes([]);
+        } else {
+          searchTweets(params, setNodes, setIsLoading);
+          router.replace(`/?${params.toString()}`);
+        }
+      });
+    },
+    [setFormState, setIsLoading, setNodes],
+  );
+
+  // Read formState from URL params
   useEffect(() => {
-    if (qParam) {
-      setQ(qParam);
-      searchTweets(qParam, setNodes);
+    if (searchParams) {
+      setIsLoading(true);
+      const q = searchParams.get("q") || "";
+      const kind = searchParams.get("kind") || FORM_STATE.kind;
+      const link = searchParams.get("link") || FORM_STATE.link;
+      const media = searchParams.get("media") || FORM_STATE.media;
+      const interaction =
+        searchParams.get("interaction") || FORM_STATE.interaction;
+      setFormState({ q, interaction, media, kind, link });
+      // TODO: Sanitize input
+      startTransition(() => {
+        searchTweets(searchParams, setNodes, setIsLoading);
+      });
     }
-  }, [qParam]);
+  }, []);
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
@@ -99,28 +165,104 @@ export default function Page() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (q.trim().length === 0) {
-                router.replace("/");
-                setNodes([]);
-              } else {
-                router.replace("/?q=" + encodeURIComponent(q));
-                searchTweets(q, setNodes);
-              }
+              //   if (q.trim().length === 0) {
+              //     router.replace("/");
+              //     setNodes([]);
+              //   } else {
+              //     const params = new URLSearchParams();
+              //     params.set("q", formState.q);
+              //     params.set("interaction", formState.interaction);
+              //     router.replace(`/?${params.toString()}`);
+              //     searchTweets(q, setNodes);
+              //   }
             }}
-            // style={{
-            //   position: "absolute",
-            //   left: "50%",
-            //   translate: "-50% -100%",
-            // }}
+            style={{
+              width: 680,
+              //   position: "absolute",
+              //   left: "50%",
+              //   translate: "-50% -100%",
+            }}
           >
-            <input
+            <TextField.Root
+              placeholder="Search tweets…"
+              variant="classic"
               type="search"
-              placeholder="Search"
-              onChange={(e) => setQ(e.currentTarget.value)}
-              value={q}
+              // onChange={(e) => setQ(e.currentTarget.value)}
+              // value={q}
+              onBlur={(e) => {
+                searchFormWith("q", e.currentTarget.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
               autoFocus
-              className="react-flow__controls search"
-            />
+              // className="react-flow__controls search"
+              size="3"
+              mt="4"
+              style={{ width: "100%" }}
+            >
+              <TextField.Slot>
+                <MagnifyingGlassIcon height="16" width="16" />
+              </TextField.Slot>
+              <TextField.Slot>
+                {(isPending || isLoading) && <Spinner />}
+              </TextField.Slot>
+            </TextField.Root>
+            <Grid columns="4" gap="4" mt="4">
+              <Select.Root
+                name="kind"
+                defaultValue="any"
+                onValueChange={(val) => searchFormWith("kind", val)}
+              >
+                <Select.Trigger variant="classic" radius="full" />
+                <Select.Content variant="soft" position="popper">
+                  <Select.Item value="any">Any type</Select.Item>
+                  <Select.Item value="standalone">Standalone</Select.Item>
+                  <Select.Item value="quote">Quotes</Select.Item>
+                  <Select.Item value="reply">Replies</Select.Item>
+                </Select.Content>
+              </Select.Root>
+              <Select.Root
+                name="link"
+                defaultValue="any"
+                onValueChange={(val) => searchFormWith("link", val)}
+              >
+                <Select.Trigger variant="classic" radius="full" />
+                <Select.Content variant="soft" position="popper">
+                  <Select.Item value="any">Any links</Select.Item>
+                  <Select.Item value="mention">Has mention</Select.Item>
+                  <Select.Item value="url">Has URL</Select.Item>
+                  <Select.Item value="hashtag">Has hashtag</Select.Item>
+                </Select.Content>
+              </Select.Root>
+              <Select.Root
+                name="media"
+                defaultValue="any"
+                onValueChange={(val) => searchFormWith("media", val)}
+              >
+                <Select.Trigger variant="classic" radius="full" />
+                <Select.Content variant="soft" position="popper">
+                  <Select.Item value="any">Any media</Select.Item>
+                  <Select.Item value="photo">Has photo</Select.Item>
+                  <Select.Item value="gif">Has GIF</Select.Item>
+                  <Select.Item value="video">Has video</Select.Item>
+                </Select.Content>
+              </Select.Root>
+              <Select.Root
+                defaultValue="any"
+                onValueChange={(val) => searchFormWith("interaction", val)}
+              >
+                <Select.Trigger variant="classic" radius="full" />
+                <Select.Content variant="soft" position="popper">
+                  <Select.Item value="any">Any interaction</Select.Item>
+                  <Select.Item value="favorited">Liked</Select.Item>
+                  <Select.Item value="bookmarked">Bookmarked</Select.Item>
+                  {/* <Select.Item value="retweeted">Retweeted</Select.Item> */}
+                </Select.Content>
+              </Select.Root>
+            </Grid>
           </form>
         </Panel>
       </ReactFlow>

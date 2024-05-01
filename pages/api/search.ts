@@ -8,6 +8,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { ChromaClient, IncludeEnum, OpenAIEmbeddingFunction } from "chromadb";
+import type { Where } from "chromadb/dist/types";
 import { UMAP } from "umap-js";
 import db from "@/lib/db/tweets-processed.json";
 
@@ -32,7 +33,15 @@ function normalize(fitting: number[][]) {
   return fitting;
 }
 
-export async function queryTweets(query: string) {
+export async function queryTweets(
+  query: string,
+  qFilters: {
+    kind: string;
+    link: string;
+    media: string;
+    interaction: string;
+  },
+) {
   const client = new ChromaClient();
   const COLLECTION_NAME = "tweet-canvas";
 
@@ -46,12 +55,73 @@ export async function queryTweets(query: string) {
     embeddingFunction: embedder,
   });
 
+  const filters: Record<string, boolean> = {};
+  switch (qFilters.media) {
+    case "image":
+      filters.hasImage = true;
+      break;
+    case "video":
+      filters.hasVideo = true;
+      break;
+    case "gif":
+      filters.hasGif = true;
+      break;
+  }
+  switch (qFilters.link) {
+    case "url":
+      filters.hasUrl = true;
+      break;
+    case "hashtag":
+      filters.hasHashtag = true;
+      break;
+    case "mention":
+      filters.hasMention = true;
+      break;
+  }
+  switch (qFilters.kind) {
+    case "standalone":
+      filters.isReply = false;
+      filters.isQuote = false;
+      break;
+    case "quote":
+      filters.isQuote = true;
+      break;
+    case "reply":
+      filters.isReply = true;
+      break;
+  }
+  if (
+    qFilters.interaction != null &&
+    ["liked", "bookmarked", "retweeted"].includes(
+      qFilters.interaction.toString(),
+    )
+  ) {
+    filters[qFilters.interaction] = true;
+  }
+
+  const where: Where = {};
+  if (Object.keys(filters).length > 1) {
+    where["$and"] = Object.entries(filters).map(([k, v]) => ({
+      [k]: { $eq: Number(v) },
+    }));
+  } else if (Object.keys(filters).length === 1) {
+    const [k, v] = Object.entries(filters)[0];
+    where[k] = { $eq: Number(v) };
+  }
+
+  console.log(qFilters, filters, JSON.stringify(where, null, 2));
+
   // query items in ChromaDB with give query phrase
   const items = await collection.query({
-    nResults: 12,
+    nResults: 16,
     queryTexts: query,
     include: [IncludeEnum.Embeddings, IncludeEnum.Metadatas],
+    where,
   });
+
+  if (items.ids == null || items.ids?.length === 0) {
+    return [];
+  }
 
   // const items = {
   //   ids: [[]],
@@ -78,24 +148,34 @@ export async function queryTweets(query: string) {
     })
     .filter(Boolean);
 
-  const umap = new UMAP({
-    nNeighbors: 2,
-    minDist: 0.01,
-    spread: 5,
-    nComponents: 2, // dimensions
-  });
-  let fittings = umap.fit(items.embeddings?.[0] ?? []);
-  fittings = normalize(fittings); // normalize to 0-1
+  if (records.length > 2) {
+    const umap = new UMAP({
+      nNeighbors: 2,
+      // minDist: 0.00001,
+      // spread: 50,
+      nComponents: 2, // dimensions
+    });
+    let fittings = umap.fit(items.embeddings?.[0] ?? []);
+    fittings = normalize(fittings); // normalize to 0-1
 
-  records.forEach((_, i) => {
-    records[i]!.fitting = fittings[i];
-  });
+    records.forEach((_, i) => {
+      records[i]!.fitting = fittings[i];
+    });
+  } else {
+    records.forEach((_, i) => {
+      records[i]!.fitting = [0, 0];
+    });
+  }
 
   return records;
 }
 
 export default async function GET(req: NextApiRequest, res: NextApiResponse) {
   const query = req.query.q;
+  const kind = req.query.kind?.toString() ?? "any";
+  const link = req.query.link?.toString() ?? "any";
+  const media = req.query.media?.toString() ?? "any";
+  const interaction = req.query.interaction?.toString() ?? "any";
 
   // throw an error if query param is not defined
   if (!query) {
@@ -111,7 +191,14 @@ export default async function GET(req: NextApiRequest, res: NextApiResponse) {
       .json({ error: "Please provide longer search query phrase" });
   }
 
-  const results = await queryTweets(query.toString());
+  const results = await queryTweets(query.toString(), {
+    kind,
+    link,
+    media,
+    interaction,
+  });
+
+  console.log(`Returning ${results.length} results`);
 
   return res.json(results);
 }
