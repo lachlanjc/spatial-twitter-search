@@ -6,7 +6,7 @@ https://github.com/lachlanjc/spatial-twitter-search/assets/5074763/f7021482-7983
 
 It’s an OpenAI embeddings-powered search tool for my Twitter likes & bookmarks, with advanced filtering, on an infinite canvas with draggable results.
 
-This codebase is rather messy, but I [documented the process]https://edu.lachlanjc.com/2024-05-07_shm_spatial_semantic_twitter_search) of building the project with more screenshots on my blog. Run free with it!
+This codebase is rather messy, but I [documented the process](https://edu.lachlanjc.com/2024-05-07_shm_spatial_semantic_twitter_search) of building the project with more screenshots on my blog. Run free with it!
 
 ## Running it yourself
 
