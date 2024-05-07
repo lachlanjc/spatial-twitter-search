@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Twitter Spatial Semantic Search
 
-## Getting Started
+I’ve combined my 1) desire to re-surface content from my Twitter feed 2) embeddings & semantic search and 3) my love of infinite canvas UIs:
 
-First, run the development server:
+<video
+src="https://cloud-6gmaemigz-lachlanjc-team.vercel.app/demo.mp4"
+controls
+muted
+autoPlay
+playsInline
+loop>
+Demo
+</video>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+It’s an OpenAI embeddings-powered search tool for my Twitter likes & bookmarks, with advanced filtering, on an infinite canvas with draggable results.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This codebase is rather messy, but I documented the process of building the project with more screenshots on my blog. Run free with it!
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Running it yourself
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+1. Clone repo
+2. `bun i`
 
-## Learn More
+Gathering your data is the most hacky process ever:
 
-To learn more about Next.js, take a look at the following resources:
+1. Create an empty file at `lib/tasks/likes-urls.txt`
+2. Open Twitter, open the network tab > XHR in devtools, go to your profile’s likes page, scroll down a bunch (<kbd>Cmd-down</kbd> repeatedly). Right click, `Copy all URLs`, paste them into the text file, filter for the ones matching `Likes?`
+3. Create a file at `lib/tasks/fetch-options.js`
+4. On your bookmarks page, right click the `Bookmarks?` request in your devtools, `Copy as fetch (Node.js)`, then paste all those headers into the `fetch-options` file, like this:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```js
+   const fetchOptions = {
+     headers: {
+       accept: "*/*",
+       "accept-language": "en-US,en;q=0.9",
+       authorization: "Bearer …"
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+5. In `.env`, set your `OPENAI_API_KEY` for embeddings
+6. Install [ChromaDB](https://trychroma.com), in another terminal, `chroma run` (you’ll need to keep this running)
+7. If you’re using [Zed](https://zed.dev), spawn the task for download, then for embedding. Otherwise, `bun run lib/tasks/download.js` then `bun run lib/tasks/embed.js`
+8. `bun dev`
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+MIT License. The tweet data in `lib/db` is not mine.
