@@ -24,6 +24,7 @@ a[class^="tweet-header_brand"] {
   display: none;
 }
 
+/* Credit to https://codepen.io/jh3y/pen/jORQyzZ */
 .blur {
   --layers: 4;
   position: absolute;
@@ -37,13 +38,18 @@ a[class^="tweet-header_brand"] {
     sin(((var(--layers) - var(--index)) / var(--layers)) * 45deg) * 30
   );
   --stop: calc(sin(((var(--index)) / var(--layers)) * 45deg) * 35);
+  --end-color: hsl(0 0% 60% / 0.05);
   position: absolute;
   inset: 0;
-  background: hsl(0 0% 60% / 0.05);
+  background: var(--end-color);
   backdrop-filter: blur(calc(var(--blur) * 1px));
   mask: radial-gradient(
     140% 130% at 45% 90%,
     #0000 calc((15 + var(--stop)) * 1%) 15%,
     #fff 100%
   );
+}
+
+.dark .blur .blur-layer {
+  --end-color: hsl(0 0% 0% / 0.08);
 }

@@ -8,7 +8,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { ChromaClient, IncludeEnum, OpenAIEmbeddingFunction } from "chromadb";
-import type { Where } from "chromadb/dist/types";
+import type { Where } from "chromadb";
 import { UMAP } from "umap-js";
 import db from "@/lib/db/tweets-processed.json";
 
@@ -69,7 +69,8 @@ export async function queryTweets(
   }
   switch (qFilters.link) {
     case "url":
-      filters.hasUrl = true;
+      // filters.hasUrl = true;
+      query += " https://";
       break;
     case "hashtag":
       filters.hasHashtag = true;
@@ -106,6 +107,7 @@ export async function queryTweets(
     }));
   } else if (Object.keys(filters).length === 1) {
     const [k, v] = Object.entries(filters)[0];
+    // @ts-expect-error this is functionally the same as above
     where[k] = { $eq: Number(v) };
   }
 
@@ -113,7 +115,7 @@ export async function queryTweets(
 
   // query items in ChromaDB with give query phrase
   const items = await collection.query({
-    nResults: 16,
+    nResults: 25,
     queryTexts: query,
     include: [IncludeEnum.Embeddings, IncludeEnum.Metadatas],
     where,
@@ -136,13 +138,14 @@ export async function queryTweets(
   // }>
   const records = (items.ids[0] ?? [])
     .map((id, i) => {
-      const metadata = items.metadatas[0][i];
+      // const metadata = items.metadatas[0][i];
       const tweet = db.find((tweet) => tweet.id_str === id);
       if (!tweet) return null;
+      if (tweet.user.screen_name === "_artsartsarts") return null;
       return {
         id,
         fitting: [0, 0],
-        metadata,
+        // metadata,
         tweet,
       };
     })
@@ -151,7 +154,7 @@ export async function queryTweets(
   if (records.length > 2) {
     const umap = new UMAP({
       nNeighbors: 2,
-      // minDist: 0.00001,
+      // minDist: 0.001,
       spread: 5,
       nComponents: 2, // dimensions
     });

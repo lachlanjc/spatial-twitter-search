@@ -2,7 +2,6 @@
 import {
   Dispatch,
   SetStateAction,
-  startTransition,
   useCallback,
   useEffect,
   useState,
@@ -10,7 +9,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MyTweet } from "./tweet";
+import { MyTweet } from "@/app/tweet";
 
 import {
   Container,
@@ -116,7 +115,7 @@ export default function Page() {
           setNodes([]);
         } else {
           searchTweets(params, setNodes, setIsLoading);
-          router.replace(`/?${params.toString()}`);
+          router.replace(`/columns?${params.toString()}`);
         }
       });
     },
@@ -153,25 +152,12 @@ export default function Page() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          //   if (q.trim().length === 0) {
-          //     router.replace("/");
-          //     setNodes([]);
-          //   } else {
-          //     const params = new URLSearchParams();
-          //     params.set("q", formState.q);
-          //     params.set("interaction", formState.interaction);
-          //     router.replace(`/?${params.toString()}`);
-          //     searchTweets(q, setNodes);
-          //   }
         }}
         style={{
           paddingBlock: 24,
           position: "sticky",
           top: 0,
           zIndex: 4,
-          //   position: "absolute",
-          //   left: "50%",
-          //   translate: "-50% -100%",
         }}
       >
         <div className="blur">

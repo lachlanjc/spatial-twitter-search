@@ -3,12 +3,12 @@ import {
   type Dispatch,
   type SetStateAction,
   type CSSProperties,
-  startTransition,
   useCallback,
   useEffect,
   useState,
   useTransition,
 } from "react";
+import { useTheme } from "next-themes";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MyTweet } from "@/app/tweet";
 
@@ -21,22 +21,33 @@ import {
   TextField,
   Container,
   Button,
+  IconButton,
+  type ButtonProps,
 } from "@radix-ui/themes";
 
-import ReactFlow, {
+import {
+  ReactFlow,
   Controls,
   Background,
   Panel,
-  // Position,
-  // NodeResizer,
-  // NodeToolbar,
   useNodesState,
   BackgroundVariant,
   MiniMap,
-} from "reactflow";
-import "reactflow/dist/style.css";
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { EnrichedTweet } from "react-tweet";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { CrossCircledIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+
+const SUGGESTED_SEARCHES: Record<string, ButtonProps["color"]> = {
+  AI: "pink",
+  Apple: "red",
+  CSS: "orange",
+  JavaScript: "yellow",
+  Figma: "green",
+  design: "blue",
+  animation: "indigo",
+  visionOS: "violet",
+};
 
 interface Result {
   id: string;
@@ -50,7 +61,7 @@ interface Result {
 }
 
 function TweetNode({
-  data: { tweet, metadata },
+  data: { tweet },
 }: {
   data: Pick<Result, "tweet" | "metadata">;
 }) {
@@ -58,26 +69,45 @@ function TweetNode({
 }
 
 const nodeTypes = { tweet: TweetNode };
+const [GRID_WIDTH, GRID_HEIGHT] = [550 + 55, 55 * 2];
+const GRID_POSITION_HEIGHT = 55 * 6;
 
 function positionItems(items: Array<Result>) {
   if (!Array.isArray(items) || items.length === 0) {
     return [];
   }
+
   const width = window.innerWidth * 2;
-  const height = window.innerHeight * 1.5;
-  const nodes = items.map((item) => ({
-    id: item.id,
-    type: "tweet",
-    data: {
-      tweet: item.tweet,
-      // metadata: item.metadata,
-    },
-    position: {
-      x: item.fitting[0] * width,
-      y: item.fitting[1] * height,
-    },
-  }));
-  console.log(nodes);
+  const height = window.innerHeight * 3;
+  const seenCoords = new Set();
+
+  const nodes = items.map((item) => {
+    let x =
+      Math.round((Math.random() * (item.fitting[0] * width)) / GRID_WIDTH) *
+      GRID_WIDTH;
+    let y =
+      Math.round(
+        (Math.random() * (item.fitting[1] * height)) / GRID_POSITION_HEIGHT,
+      ) * GRID_POSITION_HEIGHT;
+    let coordKey = [x, y].join(",");
+    console.log(coordKey, seenCoords.size, seenCoords.has(coordKey));
+    while (seenCoords.has(coordKey)) {
+      x += GRID_WIDTH;
+      y += GRID_HEIGHT * 3;
+      coordKey = [x, y].join(",");
+    }
+    seenCoords.add(coordKey);
+    return {
+      id: item.id,
+      type: "tweet",
+      data: {
+        tweet: item.tweet,
+        // metadata: item.metadata,
+      },
+      position: { x, y },
+    };
+  });
+
   return nodes;
 }
 
@@ -88,7 +118,8 @@ function searchTweets(
 ) {
   fetch(`/api/search?${params.toString()}`)
     .then((res) => res.json())
-    .then((data) => setNodes(positionItems(data)))
+    .then((data) => positionItems(data))
+    .then((nodes) => setNodes(nodes))
     .then(() => setIsLoading(false));
 }
 
@@ -108,11 +139,15 @@ export default function Page() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { theme } = useTheme();
 
   const searchFormWith = useCallback(
     (field: keyof typeof FORM_STATE, newValue: string) => {
       setIsLoading(true);
       setFormState((obj) => ({ ...obj, [field]: newValue }));
+      if (field !== "q") {
+        document.getElementById("search")!.blur();
+      }
       startTransition(() => {
         const params = new URLSearchParams();
         const { q, interaction, kind, media, link } = {
@@ -130,6 +165,7 @@ export default function Page() {
         if (q.trim().length === 0) {
           // router.replace("/");
           setNodes([]);
+          setIsLoading(false);
         } else {
           searchTweets(params, setNodes, setIsLoading);
           router.replace(`/?${params.toString()}`);
@@ -167,9 +203,12 @@ export default function Page() {
         elevateNodesOnSelect
         nodesFocusable={false}
         nodesConnectable={false}
-        preventScrolling={false}
+        snapToGrid
+        snapGrid={[GRID_WIDTH / 2, GRID_HEIGHT]}
+        panOnScroll
         proOptions={{ hideAttribution: true }}
         defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
+        colorMode={theme === "dark" ? "dark" : "light"}
       >
         <MiniMap />
         <Controls showInteractive={false} />
@@ -209,6 +248,7 @@ export default function Page() {
                 placeholder="Search tweets…"
                 variant="classic"
                 type="search"
+                id="search"
                 onChange={(e) => {
                   setFormState((val) => ({ ...val, q: e.target.value }));
                 }}
@@ -222,18 +262,34 @@ export default function Page() {
                   }
                 }}
                 autoFocus
-                // className="react-flow__controls search"
                 size="3"
+                radius="full"
                 style={{ width: "100%", position: "relative", zIndex: 5 }}
               >
                 <TextField.Slot>
                   <MagnifyingGlassIcon height="16" width="16" />
                 </TextField.Slot>
                 <TextField.Slot>
-                  {(isPending || isLoading) && <Spinner />}
+                  {isPending || isLoading ? (
+                    <Spinner />
+                  ) : (
+                    formState.q.trim().length > 0 && (
+                      <IconButton
+                        onClick={() => {
+                          setFormState(FORM_STATE);
+                          setNodes([]);
+                        }}
+                        title="Clear"
+                        variant="ghost"
+                        color="gray"
+                      >
+                        <CrossCircledIcon width="16" height="16" />
+                      </IconButton>
+                    )
+                  )}
                 </TextField.Slot>
               </TextField.Root>
-              <Grid columns="4" gap="4" mt="4">
+              <Grid columns="4" gap="3" mt="3">
                 <Select.Root
                   name="kind"
                   defaultValue="any"
@@ -274,6 +330,7 @@ export default function Page() {
                   </Select.Content>
                 </Select.Root>
                 <Select.Root
+                  name="interaction"
                   defaultValue="any"
                   onValueChange={(val) => searchFormWith("interaction", val)}
                 >
@@ -302,17 +359,16 @@ export default function Page() {
                   Suggested searches
                 </Text>
                 <Flex gap="4">
-                  {["AI", "CSS", "spatial computing", "typography"].map(
-                    (topic) => (
-                      <Button
-                        variant="soft"
-                        radius="full"
-                        onClick={() => searchFormWith("q", topic)}
-                      >
-                        {topic}
-                      </Button>
-                    ),
-                  )}
+                  {Object.keys(SUGGESTED_SEARCHES).map((topic) => (
+                    <Button
+                      variant="soft"
+                      radius="full"
+                      color={SUGGESTED_SEARCHES[topic]}
+                      onClick={() => searchFormWith("q", topic)}
+                    >
+                      {topic}
+                    </Button>
+                  ))}
                 </Flex>
               </Flex>
             ))}
