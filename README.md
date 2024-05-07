@@ -2,19 +2,11 @@
 
 I’ve combined my 1) desire to re-surface content from my Twitter feed 2) embeddings & semantic search and 3) my love of infinite canvas UIs:
 
-<video
-src="https://cloud-6gmaemigz-lachlanjc-team.vercel.app/demo.mp4"
-controls
-muted
-autoPlay
-playsInline
-loop>
-Demo
-</video>
+https://github.com/lachlanjc/spatial-twitter-search/assets/5074763/f7021482-7983-439e-bd9a-cd9a1b4d942f
 
 It’s an OpenAI embeddings-powered search tool for my Twitter likes & bookmarks, with advanced filtering, on an infinite canvas with draggable results.
 
-This codebase is rather messy, but I documented the process of building the project with more screenshots on my blog. Run free with it!
+This codebase is rather messy, but I [documented the process]https://edu.lachlanjc.com/2024-05-07_shm_spatial_semantic_twitter_search) of building the project with more screenshots on my blog. Run free with it!
 
 ## Running it yourself
 
@@ -29,7 +21,7 @@ Gathering your data is the most hacky process ever:
 4. On your bookmarks page, right click the `Bookmarks?` request in your devtools, `Copy as fetch (Node.js)`, then paste all those headers into the `fetch-options` file, like this:
 
    ```js
-   const fetchOptions = {
+   export default const fetchOptions = {
      headers: {
        accept: "*/*",
        "accept-language": "en-US,en;q=0.9",
